@@ -7,17 +7,20 @@ import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
-import java.time.Instant;
 import java.util.Date;
 
 @Component
 public class JwtTokenUtil {
+    private final RedisTemplate<String,String> redisTemplate;
     private final Key signingKey;
     private final JwtParser jwtParser;
-    public JwtTokenUtil(@Value("${jwt.secret}")String secret){
+
+    public JwtTokenUtil(RedisTemplate<String, String> redisTemplate, @Value("${jwt.secret}")String secret){
+        this.redisTemplate = redisTemplate;
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes());
         this.jwtParser = Jwts.parserBuilder().setSigningKey(signingKey).build();
     }
@@ -33,6 +36,14 @@ public class JwtTokenUtil {
                 .setSubject(username)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expireTime));
+
+        //refreshToken 은 Redis 에 저장하는 로직
+        if(expireTime.equals(refreshTokenExpireMs)){
+            String refreshToken = Jwts.builder().signWith(signingKey).setClaims(claims).compact();
+            redisTemplate.opsForValue().set(username, refreshToken);
+            return refreshToken;
+        }
+
 
         return Jwts.builder().signWith(signingKey).setClaims(claims).compact();
     }

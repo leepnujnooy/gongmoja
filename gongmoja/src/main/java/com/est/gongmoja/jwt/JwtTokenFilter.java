@@ -49,6 +49,11 @@ public class JwtTokenFilter extends OncePerRequestFilter {
         //refreshToken 세팅
         Optional<Cookie> refreshTokenCookie = CookieUtil.getCookie(request,"gongMoRefreshToken");
 
+        if(accessTokenCookie.isEmpty()){
+            log.info("accessToken 업승ㅁ");
+            filterChain.doFilter(request,response);
+            return;
+        }
 
 
         if(refreshTokenCookie.isEmpty()){
